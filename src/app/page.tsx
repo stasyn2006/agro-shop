@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 import { Search, ChevronRight, LayoutGrid, ArrowLeft, ShoppingCart, Loader2 } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 
 type Product = {
   id: number;
@@ -12,7 +13,8 @@ type Product = {
   name: string;
   price: number;
   img: string;
-  desc: string;
+  desc?: string;
+  gallery?: string[];
 };
 
 type NodeConfig = {
@@ -20,7 +22,6 @@ type NodeConfig = {
   images: Record<string, string>;
 };
 
-// Конфігурація шляхів до локальних фотографій
 const TRACTOR_NODES_CONFIG: NodeConfig[] = [
   {
     name: "Двигун",
@@ -212,6 +213,8 @@ export default function AgroStore() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const { addToCart } = useCart();
+
   useEffect(() => {
     async function fetchProducts() {
       setIsLoading(true);
@@ -238,7 +241,6 @@ export default function AgroStore() {
   return (
       <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-10">
 
-        {/* ЛІВА ПАНЕЛЬ (МАРКИ) */}
         <aside className="w-full md:w-64 shrink-0">
           <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5 px-2">Марки техніки</h2>
           <div className="flex flex-col gap-2">
@@ -260,7 +262,6 @@ export default function AgroStore() {
           </div>
         </aside>
 
-        {/* ЦЕНТРАЛЬНА ЧАСТИНА */}
         <main className="flex-1">
           {!selectedNode ? (
               <>
@@ -271,7 +272,6 @@ export default function AgroStore() {
                   </h1>
                 </div>
 
-                {/* 1. СІТКА КАТЕГОРІЙ (Жорстка фіксація картинок) */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                   {TRACTOR_NODES_CONFIG.map((node) => {
                     const currentImage = node.images[selectedBrand.id] || "/categories/placeholder.webp";
@@ -329,7 +329,6 @@ export default function AgroStore() {
                       <p className="text-gray-500 text-sm">Додайте їх у панелі Supabase!</p>
                     </div>
                 ) : (
-                    /* 2. СІТКА ТОВАРІВ (Така ж жорстка фіксація картинок) */
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {currentProducts.map((product) => (
                           <div key={product.id} className="bg-[#141816] rounded-lg border border-[#242926] overflow-hidden hover:border-[#3a443e] transition-all group flex flex-col justify-between">
@@ -340,14 +339,29 @@ export default function AgroStore() {
                                     alt={product.name}
                                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80 group-hover:opacity-100"
                                 />
+                                {/* ВИПРАВЛЕНО: Заміна Артикул на Код */}
                                 <span className="absolute top-2 left-2 bg-[#0f1110]/90 text-[#facc15] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-[#323b36] z-10">
-                                  Артикул: {product.id}
+                                  Код: {product.id}
                                 </span>
                               </div>
                               <div className="p-4 flex-1 flex flex-col gap-2">
                                 <h3 className="font-bold text-white text-base group-hover:text-[#facc15] transition-colors leading-snug">
                                   {product.name}
                                 </h3>
+
+                                {/* ДОДАНО: Відображення опису */}
+                                <p className="text-gray-400 text-xs mt-1">
+                                  {product.desc || "Опис відсутній"}
+                                </p>
+
+                                {/* ДОДАНО: Галерея (додаткові фото) */}
+                                {product.gallery && product.gallery.length > 0 && (
+                                    <div className="flex gap-1.5 mt-2">
+                                      {product.gallery.map((url, i) => (
+                                          <img key={i} src={url} alt="img" className="w-8 h-8 object-cover rounded border border-[#242926]" />
+                                      ))}
+                                    </div>
+                                )}
                               </div>
                             </Link>
 
@@ -356,17 +370,14 @@ export default function AgroStore() {
                                 <div className="flex flex-col">
                                   <span className="text-xl font-black text-white">{product.price} <span className="text-xs font-normal text-gray-400">грн</span></span>
                                 </div>
-                                <a
-                                    href={`https://t.me/your_telegram?text=Вітаю! Хочу замовити: ${encodeURIComponent(product.name)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <button
+                                    onClick={() => addToCart(product)}
                                     className="bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] px-3 py-2 rounded font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg active:scale-95 z-10 relative"
                                 >
-                                  <ShoppingCart className="h-4 w-4" /> Замовити
-                                </a>
+                                  <ShoppingCart className="h-4 w-4" /> В кошик
+                                </button>
                               </div>
                             </div>
-
                           </div>
                       ))}
                     </div>
