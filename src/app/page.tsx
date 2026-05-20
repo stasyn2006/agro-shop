@@ -1,32 +1,203 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link'; // ДОДАНО: Імпорт Link для переходів
-import { Search, ChevronRight, LayoutGrid, Zap, Fan, Droplets, Disc3, Settings, Bot, ArrowRightLeft, Radio, Target, CircleUserRound, Lightbulb, Box, KeyRound, Wrench, Magnet, ShieldCheck, ArrowLeft, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { supabase } from '../lib/supabase';
+import { Search, ChevronRight, LayoutGrid, ArrowLeft, ShoppingCart, Loader2 } from 'lucide-react';
 
-const TRACTOR_NODES_CONFIG = [
-  { name: "Двигун", icon: Zap },
-  { name: "Система живлення", icon: Fan },
-  { name: "Система охолодження", icon: Droplets },
-  { name: "Система змащення", icon: Droplets },
-  { name: "Зчеплення", icon: Disc3 },
-  { name: "Пусковий двигун", icon: Bot },
-  { name: "Коробка передач", icon: Settings },
-  { name: "Задній міст", icon: Box },
-  { name: "Напіврама", icon: Box },
-  { name: "Вісь передня", icon: ArrowRightLeft },
-  { name: "Колеса і ступиці", icon: Disc3 },
-  { name: "Рульове керування", icon: Radio },
-  { name: "Гальма", icon: Target },
-  { name: "Відбір потужності", icon: KeyRound },
-  { name: "Механізм задньої навіски", icon: CircleUserRound },
-  { name: "Електрообладнання та прилади", icon: Lightbulb },
-  { name: "Гідроагрегати", icon: Droplets },
-  { name: "Арматура", icon: Wrench },
-  { name: "Кабіна", icon: CircleUserRound },
-  { name: "Підшипники", icon: Magnet },
-  { name: "Манжети", icon: Magnet },
-  { name: "Кріплення", icon: ShieldCheck },
+type Product = {
+  id: number;
+  brand: string;
+  node: string;
+  name: string;
+  price: number;
+  img: string;
+  desc: string;
+};
+
+type NodeConfig = {
+  name: string;
+  images: Record<string, string>;
+};
+
+// Конфігурація шляхів до локальних фотографій
+const TRACTOR_NODES_CONFIG: NodeConfig[] = [
+  {
+    name: "Двигун",
+    images: {
+      mtz: "/categories/mtz/mtz-engine.webp",
+      yumz: "/categories/yumz/yumz-engine.webp",
+      t25: "/categories/t25/t25-engine.webp"
+    }
+  },
+  {
+    name: "Система живлення",
+    images: {
+      mtz: "/categories/mtz/mtz-power.webp",
+      yumz: "/categories/yumz/yumz-power.webp",
+      t25: "/categories/t25/t25-power.webp"
+    }
+  },
+  {
+    name: "Система охолодження",
+    images: {
+      mtz: "/categories/mtz/mtz-cooling.webp",
+      yumz: "/categories/yumz/yumz-cooling.webp",
+      t25: "/categories/t25/t25-cooling.webp"
+    }
+  },
+  {
+    name: "Система змащення",
+    images: {
+      mtz: "/categories/mtz/mtz-lubrication.webp",
+      yumz: "/categories/yumz/yumz-lubrication.webp",
+      t25: "/categories/t25/t25-lubrication.webp"
+    }
+  },
+  {
+    name: "Зчеплення",
+    images: {
+      mtz: "/categories/mtz/mtz-clutch.webp",
+      yumz: "/categories/yumz/yumz-clutch.webp",
+      t25: "/categories/t25/t25-clutch.webp"
+    }
+  },
+  {
+    name: "Пусковий двигун",
+    images: {
+      mtz: "/categories/mtz/mtz-starter-motor.webp",
+      yumz: "/categories/yumz/yumz-starter-motor.webp",
+      t25: "/categories/t25/t25-starter-motor.webp"
+    }
+  },
+  {
+    name: "Коробка передач",
+    images: {
+      mtz: "/categories/mtz/mtz-gearbox.webp",
+      yumz: "/categories/yumz/yumz-gearbox.webp",
+      t25: "/categories/t25/t25-gearbox.webp"
+    }
+  },
+  {
+    name: "Задній міст",
+    images: {
+      mtz: "/categories/mtz/mtz-rear-axle.webp",
+      yumz: "/categories/yumz/yumz-rear-axle.webp",
+      t25: "/categories/t25/t25-rear-axle.webp"
+    }
+  },
+  {
+    name: "Напіврама",
+    images: {
+      mtz: "/categories/mtz/mtz-frame.webp",
+      yumz: "/categories/yumz/yumz-frame.webp",
+      t25: "/categories/t25/t25-frame.webp"
+    }
+  },
+  {
+    name: "Вісь передня",
+    images: {
+      mtz: "/categories/mtz/mtz-front-axle.webp",
+      yumz: "/categories/yumz/yumz-front-axle.webp",
+      t25: "/categories/t25/t25-front-axle.webp"
+    }
+  },
+  {
+    name: "Колеса і ступиці",
+    images: {
+      mtz: "/categories/mtz/mtz-wheels.webp",
+      yumz: "/categories/yumz/yumz-wheels.webp",
+      t25: "/categories/t25/t25-wheels.webp"
+    }
+  },
+  {
+    name: "Рульове керування",
+    images: {
+      mtz: "/categories/mtz/mtz-steering.webp",
+      yumz: "/categories/yumz/yumz-steering.webp",
+      t25: "/categories/t25/t25-steering.webp"
+    }
+  },
+  {
+    name: "Гальма",
+    images: {
+      mtz: "/categories/mtz/mtz-brakes.webp",
+      yumz: "/categories/yumz/yumz-brakes.webp",
+      t25: "/categories/t25/t25-brakes.webp"
+    }
+  },
+  {
+    name: "Відбір потужності",
+    images: {
+      mtz: "/categories/mtz/mtz-pto.webp",
+      yumz: "/categories/yumz/yumz-pto.webp",
+      t25: "/categories/t25/t25-pto.webp"
+    }
+  },
+  {
+    name: "Механізм задньої навіски",
+    images: {
+      mtz: "/categories/mtz/mtz-hitch.webp",
+      yumz: "/categories/yumz/yumz-hitch.webp",
+      t25: "/categories/t25/t25-hitch.webp"
+    }
+  },
+  {
+    name: "Електрообладнання та прилади",
+    images: {
+      mtz: "/categories/mtz/mtz-electronics.webp",
+      yumz: "/categories/yumz/yumz-electronics.webp",
+      t25: "/categories/t25/t25-electronics.webp"
+    }
+  },
+  {
+    name: "Гідроагрегати",
+    images: {
+      mtz: "/categories/mtz/mtz-hydraulics.webp",
+      yumz: "/categories/yumz/yumz-hydraulics.webp",
+      t25: "/categories/t25/t25-hydraulics.webp"
+    }
+  },
+  {
+    name: "Арматура",
+    images: {
+      mtz: "/categories/mtz/mtz-valves.webp",
+      yumz: "/categories/yumz/yumz-valves.webp",
+      t25: "/categories/t25/t25-valves.webp"
+    }
+  },
+  {
+    name: "Кабіна",
+    images: {
+      mtz: "/categories/mtz/mtz-cabin.webp",
+      yumz: "/categories/yumz/yumz-cabin.webp",
+      t25: "/categories/t25/t25-cabin.webp"
+    }
+  },
+  {
+    name: "Підшипники",
+    images: {
+      mtz: "/categories/mtz/mtz-bearings.webp",
+      yumz: "/categories/yumz/yumz-bearings.webp",
+      t25: "/categories/t25/t25-bearings.webp"
+    }
+  },
+  {
+    name: "Манжети",
+    images: {
+      mtz: "/categories/mtz/mtz-seals.webp",
+      yumz: "/categories/yumz/yumz-seals.webp",
+      t25: "/categories/t25/t25-seals.webp"
+    }
+  },
+  {
+    name: "Кріплення",
+    images: {
+      mtz: "/categories/mtz/mtz-fasteners.webp",
+      yumz: "/categories/yumz/yumz-fasteners.webp",
+      t25: "/categories/t25/t25-fasteners.webp"
+    }
+  }
 ];
 
 const TRACTOR_BRANDS = [
@@ -35,32 +206,39 @@ const TRACTOR_BRANDS = [
   { id: "t25", name: "Т-25", count: 630 }
 ];
 
-const PRODUCTS = [
-  { id: 101, brand: "МТЗ", node: "Двигун", name: "Колінвал МТЗ-80/82 (Д-240)", price: 8450, img: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?q=80&w=400" },
-  { id: 102, brand: "МТЗ", node: "Система живлення", name: "Насос паливний ТНВД (Д-240)", price: 12500, img: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=400" },
-  { id: 201, brand: "ЮМЗ", node: "Двигун", name: "Поршнекомплект ЮМЗ (Д-65)", price: 4200, img: "https://images.unsplash.com/photo-1594818379496-da1e345b06a9?q=80&w=400" },
-  { id: 202, brand: "ЮМЗ", node: "Система живлення", name: "Форсунка ЮМЗ в зборі", price: 850, img: "https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?q=80&w=400" },
-  { id: 301, brand: "Т-25", node: "Двигун", name: "Циліндр двигуна Т-25 (Д-21)", price: 1800, img: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?q=80&w=400" },
-  { id: 302, brand: "Т-25", node: "Система живлення", name: "Насос паливний НД-21/2", price: 6300, img: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=400" },
-];
-
 export default function AgroStore() {
   const [selectedBrand, setSelectedBrand] = useState(TRACTOR_BRANDS[0]);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProducts() {
+      setIsLoading(true);
+      const { data, error } = await supabase.from('products').select('*');
+      if (error) {
+        console.error('Помилка при завантаженні товарів:', error);
+      } else if (data) {
+        setProducts(data);
+      }
+      setIsLoading(false);
+    }
+    fetchProducts();
+  }, []);
 
   const handleBrandChange = (brand: typeof TRACTOR_BRANDS[0]) => {
     setSelectedBrand(brand);
     setSelectedNode(null);
   };
 
-  const currentProducts = PRODUCTS.filter(
+  const currentProducts = products.filter(
       (p) => p.brand === selectedBrand.name && p.node === selectedNode
   );
 
   return (
       <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-10">
 
-        {/* ЛІВА ПАНЕЛЬ */}
+        {/* ЛІВА ПАНЕЛЬ (МАРКИ) */}
         <aside className="w-full md:w-64 shrink-0">
           <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5 px-2">Марки техніки</h2>
           <div className="flex flex-col gap-2">
@@ -82,7 +260,7 @@ export default function AgroStore() {
           </div>
         </aside>
 
-        {/* ЦЕНТР */}
+        {/* ЦЕНТРАЛЬНА ЧАСТИНА */}
         <main className="flex-1">
           {!selectedNode ? (
               <>
@@ -92,19 +270,35 @@ export default function AgroStore() {
                     <span>Каталог вузлів <span className="text-[#facc15] font-black">{selectedBrand.name}</span></span>
                   </h1>
                 </div>
+
+                {/* 1. СІТКА КАТЕГОРІЙ (Жорстка фіксація картинок) */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                   {TRACTOR_NODES_CONFIG.map((node) => {
-                    const NodeIcon = node.icon;
+                    const currentImage = node.images[selectedBrand.id] || "/categories/placeholder.webp";
+
                     return (
                         <button
                             key={node.name}
                             onClick={() => setSelectedNode(node.name)}
-                            className="bg-[#141816] border border-[#242926] rounded-xl p-6 text-center flex flex-col items-center gap-4 hover:border-[#facc15] hover:shadow-lg hover:-translate-y-1 transition-all group cursor-pointer"
+                            className="bg-[#141816] border border-[#242926] rounded-xl overflow-hidden text-center flex flex-col hover:border-[#facc15] hover:shadow-lg hover:-translate-y-1 transition-all group cursor-pointer"
                         >
-                          <div className="bg-[#1c221f] p-4 rounded-full border border-[#242926] transition-colors group-hover:border-[#facc15]">
-                            <NodeIcon className="h-8 w-8 text-gray-600 transition-colors group-hover:text-[#facc15]" />
+                          <div className="w-full aspect-[4/3] bg-[#1c221f] overflow-hidden relative border-b border-[#242926]">
+                            <img
+                                src={currentImage}
+                                alt={node.name}
+                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80 group-hover:opacity-100 pointer-events-none"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100%' height='100%' fill='%231c221f'/></svg>";
+                                }}
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10 pointer-events-none"></div>
                           </div>
-                          <span className="font-bold text-white text-sm leading-tight group-hover:text-[#facc15] transition-colors line-clamp-2">{node.name}</span>
+
+                          <div className="p-4 flex items-center justify-center min-h-[4rem]">
+                             <span className="font-bold text-white text-sm leading-tight group-hover:text-[#facc15] transition-colors line-clamp-2">
+                               {node.name}
+                             </span>
+                          </div>
                         </button>
                     );
                   })}
@@ -123,22 +317,32 @@ export default function AgroStore() {
                   </h1>
                 </div>
 
-                {currentProducts.length === 0 ? (
+                {isLoading ? (
+                    <div className="text-center py-20 bg-[#141816] rounded-xl border border-dashed border-[#323b36] flex flex-col items-center justify-center">
+                      <Loader2 className="h-10 w-10 text-[#facc15] animate-spin mb-4" />
+                      <h3 className="text-white font-bold text-lg">Завантажуємо деталі з бази...</h3>
+                    </div>
+                ) : currentProducts.length === 0 ? (
                     <div className="text-center py-20 bg-[#141816] rounded-xl border border-dashed border-[#323b36] flex flex-col items-center justify-center">
                       <Search className="h-12 w-12 text-gray-600 mb-4" />
                       <h3 className="text-white font-bold text-xl mb-2">У цій категорії поки немає товарів.</h3>
+                      <p className="text-gray-500 text-sm">Додайте їх у панелі Supabase!</p>
                     </div>
                 ) : (
+                    /* 2. СІТКА ТОВАРІВ (Така ж жорстка фіксація картинок) */
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {currentProducts.map((product) => (
                           <div key={product.id} className="bg-[#141816] rounded-lg border border-[#242926] overflow-hidden hover:border-[#3a443e] transition-all group flex flex-col justify-between">
-                            {/* ДОДАНО: Обгортка Link для переходу на сторінку товару */}
                             <Link href={`/product/${product.id}`} className="block">
                               <div className="relative aspect-video bg-[#1c221f] overflow-hidden">
-                                <img src={product.img} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80 group-hover:opacity-100" />
-                                <span className="absolute top-2 left-2 bg-[#0f1110]/90 text-[#facc15] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-[#323b36]">
-                          Артикул: {product.id}
-                        </span>
+                                <img
+                                    src={product.img}
+                                    alt={product.name}
+                                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80 group-hover:opacity-100"
+                                />
+                                <span className="absolute top-2 left-2 bg-[#0f1110]/90 text-[#facc15] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-[#323b36] z-10">
+                                  Артикул: {product.id}
+                                </span>
                               </div>
                               <div className="p-4 flex-1 flex flex-col gap-2">
                                 <h3 className="font-bold text-white text-base group-hover:text-[#facc15] transition-colors leading-snug">
@@ -147,7 +351,6 @@ export default function AgroStore() {
                               </div>
                             </Link>
 
-                            {/* Нижня частина з ціною та кнопкою залишається без змін */}
                             <div className="p-4 pt-0">
                               <div className="flex items-center justify-between pt-3 border-t border-[#242926]">
                                 <div className="flex flex-col">
@@ -157,7 +360,7 @@ export default function AgroStore() {
                                     href={`https://t.me/your_telegram?text=Вітаю! Хочу замовити: ${encodeURIComponent(product.name)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] px-3 py-2 rounded font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg active:scale-95"
+                                    className="bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] px-3 py-2 rounded font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg active:scale-95 z-10 relative"
                                 >
                                   <ShoppingCart className="h-4 w-4" /> Замовити
                                 </a>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Search, MessageSquare, Phone } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "АГРО-ДНІПРО | Запчастини",
+  title: "АГРО-МАГАЗИН | Запчастини",
   description: "Інтернет-магазин запчастин до сільгосптехніки",
 };
 
@@ -22,7 +22,7 @@ export default function RootLayout({
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <Link href="/" className="flex items-center gap-2">
               <span className="text-2xl font-black tracking-wider text-white hover:text-gray-300 transition-colors">
-                AGRO<span className="text-[#facc15]">.DP</span>
+                AGRO<span className="text-[#facc15]">-SHOP</span>
               </span>
           </Link>
 
@@ -54,12 +54,12 @@ export default function RootLayout({
       {/* ГЛОБАЛЬНИЙ ПІДВАЛ */}
       <footer className="mt-auto border-t border-[#242926] bg-[#111413] py-8 text-sm text-gray-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p>© 2026 AGRO.DP — Якісні запчастини до сільгосптехніки. Доставка по Україні.</p>
+          <p>© 2026 AGRO-SHOP — Якісні запчастини до сільгосптехніки. Доставка по Україні.</p>
           <div className="flex gap-4">
-            <a href="https://t.me/your_username" className="flex items-center gap-1 hover:text-white transition-colors bg-[#1c221f] px-3 py-1.5 rounded border border-[#242926]">
+            <a href="https://t.me/Trach_R" className="flex items-center gap-1 hover:text-white transition-colors bg-[#1c221f] px-3 py-1.5 rounded border border-[#242926]">
               <MessageSquare className="h-4 w-4 text-[#38bdf8]" /> Telegram
             </a>
-            <a href="viber://chat?number=%2B380000000000" className="flex items-center gap-1 hover:text-white transition-colors bg-[#1c221f] px-3 py-1.5 rounded border border-[#242926]">
+            <a href="viber://chat?number=%2B380975773551" className="flex items-center gap-1 hover:text-white transition-colors bg-[#1c221f] px-3 py-1.5 rounded border border-[#242926]">
               <Phone className="h-4 w-4 text-[#a855f7]" /> Viber
             </a>
           </div>
