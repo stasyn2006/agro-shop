@@ -36,18 +36,17 @@ export default function RootLayout({
                             </span>
                         </Link>
 
-                        {/* ПОШУК (Тільки на ПК) - flex-1 розтягує його по центру */}
+                        {/* ПОШУК (Тільки на ПК) */}
                         <div className="hidden md:block flex-1 max-w-2xl">
                             <SearchBar />
                         </div>
 
-                        {/* НАВІГАЦІЯ (Тільки на ПК) */}
+                        {/* НАВІГАЦІЯ (Тільки на ПК) - Адмінку видалено */}
                         <nav className="hidden md:flex items-center gap-6 text-sm font-medium shrink-0">
                             <Link href="/" className="hover:text-[#facc15] transition-colors">Каталог</Link>
                             <Link href="/about" className="hover:text-[#facc15] transition-colors">Про нас</Link>
                             <Link href="/reviews" className="hover:text-[#facc15] transition-colors">Відгуки</Link>
                             <Link href="/contacts" className="hover:text-[#facc15] transition-colors">Контакти</Link>
-                            <Link href="/admin" className="text-gray-500 hover:text-[#facc15] transition-colors text-sm font-bold ml-2 border-l border-[#242926] pl-4">Адмін-панель</Link>
                         </nav>
 
                         {/* КНОПКА БУРГЕР (Тільки на мобілці) */}
@@ -57,8 +56,7 @@ export default function RootLayout({
 
                     </div>
 
-                    {/* ВИЇЗНЕ МЕНЮ (Тільки на мобілці) */}
-                    {/* Воно приховане, поки чекбокс не натиснутий (peer-checked:flex) */}
+                    {/* ВИЇЗНЕ МЕНЮ (Тільки на мобілці) - Адмінку видалено */}
                     <div className="hidden peer-checked:flex md:hidden flex-col gap-4 mt-4 pt-4 border-t border-[#242926] w-full transition-all">
                         <div className="w-full">
                             <SearchBar />
@@ -68,7 +66,6 @@ export default function RootLayout({
                             <Link href="/about" className="hover:text-[#facc15] transition-colors text-center py-3 border-b border-[#242926]/50 bg-[#1c221f]/30 rounded-lg">Про нас</Link>
                             <Link href="/reviews" className="hover:text-[#facc15] transition-colors text-center py-3 border-b border-[#242926]/50 bg-[#1c221f]/30 rounded-lg">Відгуки</Link>
                             <Link href="/contacts" className="hover:text-[#facc15] transition-colors text-center py-3 border-b border-[#242926]/50 bg-[#1c221f]/30 rounded-lg">Контакти</Link>
-                            <Link href="/admin" className="text-gray-500 hover:text-[#facc15] transition-colors text-sm font-bold text-center py-3 mt-2">Адмін-панель</Link>
                         </nav>
                     </div>
 
