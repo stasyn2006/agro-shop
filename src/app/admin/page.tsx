@@ -3,9 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit2, Trash2, LogOut, Loader2, Image as ImageIcon, ShieldAlert, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, LogOut, Loader2, Image as ImageIcon, ShieldAlert, X, UploadCloud } from 'lucide-react';
 
-// Повний список вузлів для випадаючого списку
 const TRACTOR_NODES = [
     "Двигун", "Система живлення", "Система охолодження", "Система змащення", "Зчеплення",
     "Пусковий двигун", "Коробка передач", "Задній міст", "Напіврама", "Вісь передня",
@@ -23,7 +22,10 @@ export default function AdminDashboard() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Ціна тепер рядок, щоб зручно вводити без стрілочок
+    const [isUploadingMain, setIsUploadingMain] = useState(false);
+    const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+
+    // Додаємо in_stock до стану форми
     const [formData, setFormData] = useState({
         name: '',
         brand: 'МТЗ',
@@ -32,7 +34,8 @@ export default function AdminDashboard() {
         article: '',
         img: '',
         gallery: '',
-        desc: 'Оригінальна запчастина'
+        desc: 'Оригінальна запчастина',
+        in_stock: true
     });
 
     useEffect(() => {
@@ -91,7 +94,7 @@ export default function AdminDashboard() {
 
     const openAddModal = () => {
         setEditingId(null);
-        setFormData({ name: '', brand: 'МТЗ', node: 'Двигун', price: '', article: '', img: '', gallery: '', desc: '' });
+        setFormData({ name: '', brand: 'МТЗ', node: 'Двигун', price: '', article: '', img: '', gallery: '', desc: '', in_stock: true });
         setIsModalOpen(true);
     };
 
@@ -101,13 +104,67 @@ export default function AdminDashboard() {
             name: product.name,
             brand: product.brand,
             node: product.node,
-            price: String(product.price), // Перетворюємо в рядок для інпута
+            price: String(product.price),
             article: product.article || '',
             img: product.img,
             gallery: product.gallery ? product.gallery.join(', ') : '',
-            desc: product.desc || ''
+            desc: product.desc || '',
+            in_stock: product.in_stock !== false // Якщо null, то вважаємо true
         });
         setIsModalOpen(true);
+    };
+
+    const uploadImageToStorage = async (file: File) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('images')
+            .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage.from('images').getPublicUrl(fileName);
+        return data.publicUrl;
+    };
+
+    const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        setIsUploadingMain(true);
+        try {
+            const file = e.target.files[0];
+            const url = await uploadImageToStorage(file);
+            setFormData({ ...formData, img: url });
+        } catch (error: any) {
+            alert('Помилка завантаження фото: ' + error.message);
+        } finally {
+            setIsUploadingMain(false);
+        }
+    };
+
+    const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        setIsUploadingGallery(true);
+        try {
+            const newUrls: string[] = [];
+            for (const file of Array.from(e.target.files)) {
+                const url = await uploadImageToStorage(file);
+                newUrls.push(url);
+            }
+
+            const currentGalleryStr = formData.gallery.trim();
+            const newGalleryStr = newUrls.join(', ');
+
+            const combinedGallery = currentGalleryStr
+                ? `${currentGalleryStr}, ${newGalleryStr}`
+                : newGalleryStr;
+
+            setFormData({ ...formData, gallery: combinedGallery });
+        } catch (error: any) {
+            alert('Помилка завантаження галереї: ' + error.message);
+        } finally {
+            setIsUploadingGallery(false);
+        }
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -123,11 +180,12 @@ export default function AdminDashboard() {
             name: formData.name,
             brand: formData.brand,
             node: formData.node,
-            price: Number(formData.price), // Перед відправкою робимо числом
+            price: Number(formData.price),
             article: formData.article,
             img: formData.img,
             gallery: galleryArray,
-            desc: formData.desc
+            desc: formData.desc,
+            in_stock: formData.in_stock // Записуємо статус наявності в базу
         };
 
         if (editingId) {
@@ -160,6 +218,8 @@ export default function AdminDashboard() {
         );
     }
 
+    const isSaveDisabled = isSaving || isUploadingMain || isUploadingGallery;
+
     return (
         <div className="min-h-[80vh] bg-[#0f1110] p-4 md:p-8">
             <div className="max-w-7xl mx-auto">
@@ -187,7 +247,7 @@ export default function AdminDashboard() {
                             <th className="px-6 py-4">Назва</th>
                             <th className="px-6 py-4">Бренд / Вузол</th>
                             <th className="px-6 py-4">Ціна</th>
-                            <th className="px-6 py-4">Артикул</th>
+                            <th className="px-6 py-4 text-center">Статус</th>
                             <th className="px-6 py-4 text-right">Дії</th>
                         </tr>
                         </thead>
@@ -210,7 +270,16 @@ export default function AdminDashboard() {
                                         <span className="text-gray-500">{product.node}</span>
                                     </td>
                                     <td className="px-6 py-4 font-black text-[#facc15]">{product.price} грн</td>
-                                    <td className="px-6 py-4 text-gray-500">{product.article || '—'}</td>
+
+                                    {/* Індикатор наявності в таблиці */}
+                                    <td className="px-6 py-4 text-center">
+                                        {product.in_stock !== false ? (
+                                            <span className="bg-green-500/10 text-green-500 border border-green-500/20 px-2 py-1 rounded text-xs font-bold">Є</span>
+                                        ) : (
+                                            <span className="bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-1 rounded text-xs font-bold">Немає</span>
+                                        )}
+                                    </td>
+
                                     <td className="px-6 py-4 flex justify-end gap-3">
                                         <button onClick={() => openEditModal(product)} className="p-2 bg-blue-500/10 text-blue-500 rounded hover:bg-blue-500/20 transition-colors">
                                             <Edit2 className="h-4 w-4" />
@@ -229,7 +298,7 @@ export default function AdminDashboard() {
             </div>
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+                <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
                     <div className="bg-[#141816] border border-[#242926] rounded-2xl w-full max-w-2xl my-8">
                         <div className="p-6 border-b border-[#242926] flex justify-between items-center sticky top-0 bg-[#141816] rounded-t-2xl z-10">
                             <h2 className="text-xl font-black text-white">{editingId ? 'Редагувати товар' : 'Новий товар'}</h2>
@@ -237,6 +306,19 @@ export default function AdminDashboard() {
                         </div>
 
                         <form onSubmit={handleSave} className="p-6 flex flex-col gap-5">
+
+                            {/* ЧЕКБОКС НАЯВНОСТІ */}
+                            <div className="bg-[#1c221f] border border-[#323b36] p-4 rounded-lg flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-white font-bold text-sm">Наявність товару</h3>
+                                    <p className="text-gray-500 text-xs mt-0.5">Чи доступний цей товар для покупки клієнтами?</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={formData.in_stock} onChange={e => setFormData({...formData, in_stock: e.target.checked})} className="sr-only peer" />
+                                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#facc15]"></div>
+                                </label>
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Назва товару</label>
@@ -244,17 +326,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Ціна (грн)</label>
-                                    <input
-                                        required
-                                        type="text"
-                                        value={formData.price}
-                                        onChange={e => {
-                                            // Дозволяємо вводити ТІЛЬКИ цифри
-                                            const onlyNumbers = e.target.value.replace(/\D/g, '');
-                                            setFormData({...formData, price: onlyNumbers});
-                                        }}
-                                        className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none"
-                                    />
+                                    <input required type="text" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value.replace(/\D/g, '')})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Бренд</label>
@@ -274,15 +346,30 @@ export default function AdminDashboard() {
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Артикул</label>
                                     <input type="text" value={formData.article} onChange={e => setFormData({...formData, article: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none" />
                                 </div>
+
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Шлях до головного фото</label>
-                                    <input required type="text" value={formData.img} onChange={e => setFormData({...formData, img: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none" placeholder="/categories/mtz/mtz-engine.webp" />
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Головне фото</label>
+                                    <div className="flex gap-2 items-center h-[42px]">
+                                        <label className={`cursor-pointer bg-[#242926] hover:bg-[#323b36] border border-[#323b36] text-white px-3 py-2 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 h-full shrink-0 ${isUploadingMain ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {isUploadingMain ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4 text-[#facc15]" />}
+                                            <span className="hidden sm:inline">Файл</span>
+                                            <input type="file" accept="image/*" className="hidden" onChange={handleMainImageUpload} disabled={isUploadingMain} />
+                                        </label>
+                                        <input required type="text" value={formData.img} onChange={e => setFormData({...formData, img: e.target.value})} className="w-full h-full bg-[#1c221f] border border-[#323b36] rounded-lg px-2.5 text-white text-xs focus:border-[#facc15] outline-none" placeholder="Або встав посилання..." />
+                                    </div>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Додаткові фото (через кому)</label>
-                                <input type="text" value={formData.gallery} onChange={e => setFormData({...formData, gallery: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none" placeholder="/photo1.jpg, /photo2.jpg" />
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Додаткові фото (галерея)</label>
+                                <div className="flex gap-2 items-start">
+                                    <label className={`cursor-pointer bg-[#242926] hover:bg-[#323b36] border border-[#323b36] text-white px-3 py-2 rounded-lg font-bold transition-colors flex items-center gap-2 h-[42px] shrink-0 ${isUploadingGallery ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        {isUploadingGallery ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4 text-[#facc15]" />}
+                                        <span className="hidden sm:inline">Файли</span>
+                                        <input type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryUpload} disabled={isUploadingGallery} />
+                                    </label>
+                                    <textarea rows={2} value={formData.gallery} onChange={e => setFormData({...formData, gallery: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white text-xs focus:border-[#facc15] outline-none leading-relaxed" placeholder="Тут з'являться посилання через кому..." />
+                                </div>
                             </div>
 
                             <div>
@@ -290,9 +377,9 @@ export default function AdminDashboard() {
                                 <textarea rows={3} value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none" />
                             </div>
 
-                            <div className="flex justify-end gap-3 pt-4 border-t border-[#242926] sticky bottom-0 bg-[#141816] rounded-b-2xl">
+                            <div className="flex justify-end gap-3 pt-4 border-t border-[#242926] sticky bottom-0 bg-[#141816] rounded-b-2xl mt-2">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 rounded-lg font-bold text-gray-300 hover:bg-[#1c221f] transition-colors">Скасувати</button>
-                                <button type="submit" disabled={isSaving} className="bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] px-8 py-2.5 rounded-lg font-black transition-colors flex items-center gap-2">
+                                <button type="submit" disabled={isSaveDisabled} className="bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] px-8 py-2.5 rounded-lg font-black transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                                     {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Зберегти'}
                                 </button>
                             </div>

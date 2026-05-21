@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Link from "next/link";
-import { Search, MessageSquare, Phone } from "lucide-react";
-import { CartProvider } from "../context/CartContext"; // ДОДАНО ІМПОРТ КОШИКА
+import { MessageSquare, Phone } from "lucide-react";
+import { CartProvider } from "../context/CartContext";
+// ДОДАНО: Імпортуємо наш новий розумний пошук
+import SearchBar from "../components/SearchBar";
 
 export const metadata: Metadata = {
     title: "АГРО-МАГАЗИН | Запчастини",
@@ -18,27 +20,17 @@ export default function RootLayout({
         <html lang="uk">
         <body className="bg-[#0f1110] text-[#e4e6e5] font-sans min-h-screen flex flex-col">
 
-        {/* ДОДАНО: Обгортаємо весь сайт у CartProvider */}
         <CartProvider>
-
-            {/* ГЛОБАЛЬНА ШАПКА (Буде на всіх сторінках) */}
             <header className="border-b border-[#242926] bg-[#141816] sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                     <Link href="/" className="flex items-center gap-2">
-                <span className="text-2xl font-black tracking-wider text-white hover:text-gray-300 transition-colors">
-                  AGRO<span className="text-[#facc15]">-SHOP</span>
-                </span>
+                        <span className="text-2xl font-black tracking-wider text-white hover:text-gray-300 transition-colors">
+                          AGRO<span className="text-[#facc15]">-SHOP</span>
+                        </span>
                     </Link>
 
-                    {/* Глобальний пошук */}
-                    <div className="relative w-full sm:w-96">
-                        <input
-                            type="text"
-                            placeholder="Пошук по всьому сайту..."
-                            className="w-full bg-[#1c221f] border border-[#323b36] rounded-md py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#facc15] transition-colors"
-                        />
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                    </div>
+                    {/* ДОДАНО: Викликаємо наш клієнтський компонент пошуку */}
+                    <SearchBar />
 
                     {/* Глобальна навігація */}
                     <nav className="flex items-center gap-6 text-sm font-medium">
@@ -46,16 +38,15 @@ export default function RootLayout({
                         <Link href="/about" className="hover:text-[#facc15] transition-colors">Про нас</Link>
                         <Link href="/reviews" className="hover:text-[#facc15] transition-colors">Відгуки</Link>
                         <Link href="/contacts" className="hover:text-[#facc15] transition-colors">Контакти</Link>
+                        <Link href="/admin" className="text-gray-500 hover:text-[#facc15] transition-colors text-sm font-bold ml-4 border-l border-[#242926] pl-4">Адмін-панель</Link>
                     </nav>
                 </div>
             </header>
 
-            {/* ОСНОВНИЙ КОНТЕНТ (Сюди Next.js підставляє сторінки) */}
             <main className="flex-1">
                 {children}
             </main>
 
-            {/* ГЛОБАЛЬНИЙ ПІДВАЛ */}
             <footer className="mt-auto border-t border-[#242926] bg-[#111413] py-8 text-sm text-gray-400">
                 <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <p>© 2026 AGRO-SHOP — Якісні запчастини до сільгосптехніки. Доставка по Україні.</p>
@@ -72,8 +63,6 @@ export default function RootLayout({
             </footer>
 
         </CartProvider>
-        {/* КІНЕЦЬ CartProvider */}
-
         </body>
         </html>
     );

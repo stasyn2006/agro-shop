@@ -15,7 +15,9 @@ type Product = {
     name: string;
     price: number;
     img: string;
-    desc: string;
+    desc?: string;
+    gallery?: string[];
+    in_stock?: boolean; // ДОДАЛИ СТАТУС НАЯВНОСТІ
 };
 
 const MIN_SCALE = 1;
@@ -49,6 +51,11 @@ function InteractiveImage({ src, alt }: { src: string; alt: string }) {
     useEffect(() => {
         setPosition(prev => clampPosition(prev.x, prev.y, scale));
     }, [scale, clampPosition]);
+
+    useEffect(() => {
+        setScale(MIN_SCALE);
+        setPosition({ x: 0, y: 0 });
+    }, [src]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -113,7 +120,7 @@ function InteractiveImage({ src, alt }: { src: string; alt: string }) {
                     src={src}
                     alt={alt}
                     draggable={false}
-                    className="w-full h-full object-cover select-none pointer-events-none"
+                    className="w-full h-full object-contain select-none pointer-events-none"
                 />
             </div>
         </div>
@@ -127,6 +134,7 @@ export default function ProductPage() {
     const [product, setProduct] = useState<Product | null>(null);
     const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeImage, setActiveImage] = useState<string>('');
 
     const { addToCart } = useCart();
 
@@ -135,7 +143,6 @@ export default function ProductPage() {
         async function fetchProductData() {
             setIsLoading(true);
 
-            // 1. Завантажуємо головний товар
             const { data, error } = await supabase
                 .from('products')
                 .select('*')
@@ -146,15 +153,15 @@ export default function ProductPage() {
                 console.error('Помилка завантаження деталі:', error);
             } else if (data) {
                 setProduct(data);
+                setActiveImage(data.img);
 
-                // 2. Одразу шукаємо схожі товари (той самий бренд і вузол, крім цього ж товару)
                 const { data: similar } = await supabase
                     .from('products')
                     .select('*')
                     .eq('brand', data.brand)
                     .eq('node', data.node)
                     .neq('id', data.id)
-                    .limit(4); // Виводимо максимум 4 картки
+                    .limit(4);
 
                 if (similar) {
                     setSimilarProducts(similar);
@@ -186,33 +193,54 @@ export default function ProductPage() {
         );
     }
 
+    const allImages = [product.img, ...(Array.isArray(product.gallery) ? product.gallery : [])];
+
+    // Якщо in_stock не задано, вважаємо що воно true (для старих товарів)
+    const isAvailable = product.in_stock !== false;
+
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
 
-            {/* ХЛІБНІ КРИХТИ */}
             <nav className="flex items-center flex-wrap gap-2.5 text-sm text-gray-400 mb-8 font-medium">
                 <Link href="/" className="hover:text-[#facc15] transition-colors flex items-center gap-1.5">
                     <LayoutGrid className="h-4 w-4" /> Головна
                 </Link>
                 <span className="text-[#242926] font-bold">/</span>
-                <Link href="/" className="hover:text-[#facc15] transition-colors">{product.brand}</Link>
+                <span className="hover:text-white transition-colors">{product.brand}</span>
                 <span className="text-[#242926] font-bold">/</span>
-                <Link href="/" className="hover:text-[#facc15] transition-colors">{product.node}</Link>
+                <span className="hover:text-white transition-colors">{product.node}</span>
                 <span className="text-[#242926] font-bold">/</span>
                 <span className="text-white truncate max-w-[200px] sm:max-w-[300px]">{product.name}</span>
             </nav>
 
-            {/* ОСНОВНА КАРТКА ТОВАРУ */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-                <div className="lg:col-span-7 w-full flex gap-3 md:gap-4">
-                    <div className="flex flex-col gap-2 w-16 md:w-20 shrink-0">
-                        <button className="w-full aspect-square rounded-lg border-2 border-[#facc15] overflow-hidden bg-[#1c221f]">
-                            <img src={product.img} alt={product.name} className="w-full h-full object-cover" />
-                        </button>
+
+                <div className="lg:col-span-7 flex flex-col gap-8">
+                    <div className="w-full flex gap-3 md:gap-4">
+                        <div className="flex flex-col gap-2 w-16 md:w-20 shrink-0">
+                            {allImages.map((src, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => setActiveImage(src)}
+                                    className={`w-full aspect-square rounded-lg border-2 overflow-hidden bg-[#1c221f] transition-all ${
+                                        activeImage === src ? 'border-[#facc15]' : 'border-transparent hover:border-[#323b36]'
+                                    }`}
+                                >
+                                    <img src={src} alt={`Фото ${index + 1}`} className="w-full h-full object-cover" />
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex-1">
+                            <InteractiveImage src={activeImage} alt={product.name} />
+                        </div>
                     </div>
 
-                    <div className="flex-1">
-                        <InteractiveImage src={product.img} alt={product.name} />
+                    <div className="bg-[#141816] rounded-xl border border-[#242926] p-6 md:p-8">
+                        <h2 className="text-xl font-black text-white mb-4 uppercase tracking-wide">Опис та характеристики</h2>
+                        <div className="text-gray-300 leading-relaxed whitespace-pre-wrap break-words text-sm md:text-base overflow-hidden">
+                            {product.desc ? product.desc : "Детальний опис для цього товару ще не додано."}
+                        </div>
                     </div>
                 </div>
 
@@ -223,13 +251,23 @@ export default function ProductPage() {
                         </h1>
 
                         <div className="flex flex-col gap-1.5 mt-1">
-                            <div className="flex items-center gap-2 mb-1">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                                <span className="text-green-500 font-bold text-sm tracking-wide">В наявності</span>
-                            </div>
+                            {/* ДИНАМІЧНИЙ СТАТУС НАЯВНОСТІ */}
+                            {isAvailable ? (
+                                <div className="flex items-center gap-2 mb-1">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                  </span>
+                                    <span className="text-green-500 font-bold text-sm tracking-wide">В наявності</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 mb-1">
+                  <span className="relative flex h-3 w-3">
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                                    <span className="text-red-500 font-bold text-sm tracking-wide">Немає в наявності</span>
+                                </div>
+                            )}
 
                             <div className="text-sm">
                                 <span className="text-gray-400">Код: </span>
@@ -248,12 +286,17 @@ export default function ProductPage() {
                     </div>
 
                     <div className="pt-2">
+                        {/* ДИНАМІЧНА КНОПКА ПРИДБАТИ */}
                         <button
                             onClick={() => addToCart(product)}
-                            className="w-full bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] py-4 rounded-xl font-black text-lg text-center flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.99] tracking-wide"
+                            disabled={!isAvailable}
+                            className={`w-full py-4 rounded-xl font-black text-lg text-center flex items-center justify-center gap-3 transition-all shadow-xl tracking-wide 
+                ${isAvailable
+                                ? 'bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] active:scale-[0.99]'
+                                : 'bg-[#242926] text-gray-500 border border-[#323b36] cursor-not-allowed'}`}
                         >
                             <ShoppingCart className="h-6 w-6 stroke-[2.5]" />
-                            Придбати
+                            {isAvailable ? 'Придбати' : 'Недоступно'}
                         </button>
                     </div>
 
@@ -274,67 +317,8 @@ export default function ProductPage() {
                             </div>
                         </div>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 select-none">
-                        <div className="bg-[#141816] border border-[#242926] rounded-lg p-4 flex items-center gap-3">
-                            <ShieldCheck className="h-6 w-6 text-gray-500 shrink-0" />
-                            <div className="flex flex-col">
-                                <span className="text-gray-300 font-bold text-sm">Гарантія 12 місяців</span>
-                            </div>
-                        </div>
-                        <div className="bg-[#141816] border border-[#242926] rounded-lg p-4 flex items-center gap-3">
-                            <Zap className="h-6 w-6 text-gray-500 shrink-0" />
-                            <div className="flex flex-col">
-                                <span className="text-gray-300 font-bold text-sm">Відправка сьогодні</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
-
-            {/* БЛОК СХОЖИХ ТОВАРІВ */}
-            {similarProducts.length > 0 && (
-                <div className="mt-24 pt-10 border-t border-[#242926]">
-                    <h2 className="text-2xl font-black tracking-tight text-white mb-8">
-                        З цим товаром також купують
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {similarProducts.map((simProduct) => (
-                            <div key={simProduct.id} className="bg-[#141816] rounded-lg border border-[#242926] overflow-hidden hover:border-[#3a443e] transition-all group flex flex-col justify-between">
-                                <Link href={`/product/${simProduct.id}`} className="block">
-                                    <div className="relative aspect-video bg-[#1c221f] overflow-hidden">
-                                        <img
-                                            src={simProduct.img}
-                                            alt={simProduct.name}
-                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80 group-hover:opacity-100"
-                                        />
-                                        <span className="absolute top-2 left-2 bg-[#0f1110]/90 text-[#facc15] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-[#323b36] z-10">
-                      Код: {simProduct.id}
-                    </span>
-                                    </div>
-                                    <div className="p-4 flex-1 flex flex-col gap-2">
-                                        <h3 className="font-bold text-white text-sm group-hover:text-[#facc15] transition-colors leading-snug line-clamp-2">
-                                            {simProduct.name}
-                                        </h3>
-                                    </div>
-                                </Link>
-
-                                <div className="p-4 pt-0">
-                                    <div className="flex items-center justify-between pt-3 border-t border-[#242926]">
-                                        <span className="text-lg font-black text-white">{simProduct.price} <span className="text-xs font-normal text-gray-400">грн</span></span>
-                                        <button
-                                            onClick={() => addToCart(simProduct)}
-                                            className="bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] px-3 py-2 rounded font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg active:scale-95 z-10 relative"
-                                        >
-                                            <ShoppingCart className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
