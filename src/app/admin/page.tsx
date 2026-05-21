@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit2, Trash2, LogOut, Loader2, Image as ImageIcon, ShieldAlert, X, UploadCloud } from 'lucide-react';
+// ДОДАЛИ ChevronDown для нашого нового списку
+import { Plus, Edit2, Trash2, LogOut, Loader2, Image as ImageIcon, ShieldAlert, X, UploadCloud, Search, ChevronDown } from 'lucide-react';
 
 const TRACTOR_NODES = [
     "Двигун", "Система живлення", "Система охолодження", "Система змащення", "Зчеплення",
@@ -18,6 +19,8 @@ export default function AdminDashboard() {
     const [products, setProducts] = useState<any[]>([]);
     const [debugError, setDebugError] = useState<string | null>(null);
 
+    const [searchQuery, setSearchQuery] = useState('');
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -25,7 +28,9 @@ export default function AdminDashboard() {
     const [isUploadingMain, setIsUploadingMain] = useState(false);
     const [isUploadingGallery, setIsUploadingGallery] = useState(false);
 
-    // Додаємо in_stock до стану форми
+    // СТАН ДЛЯ НАШОГО НОВОГО СПИСКУ "ВУЗОЛ"
+    const [isNodeOpen, setIsNodeOpen] = useState(false);
+
     const [formData, setFormData] = useState({
         name: '',
         brand: 'МТЗ',
@@ -95,6 +100,7 @@ export default function AdminDashboard() {
     const openAddModal = () => {
         setEditingId(null);
         setFormData({ name: '', brand: 'МТЗ', node: 'Двигун', price: '', article: '', img: '', gallery: '', desc: '', in_stock: true });
+        setIsNodeOpen(false); // Закриваємо список при відкритті модалки
         setIsModalOpen(true);
     };
 
@@ -109,8 +115,9 @@ export default function AdminDashboard() {
             img: product.img,
             gallery: product.gallery ? product.gallery.join(', ') : '',
             desc: product.desc || '',
-            in_stock: product.in_stock !== false // Якщо null, то вважаємо true
+            in_stock: product.in_stock !== false
         });
+        setIsNodeOpen(false); // Закриваємо список при відкритті модалки
         setIsModalOpen(true);
     };
 
@@ -185,7 +192,7 @@ export default function AdminDashboard() {
             img: formData.img,
             gallery: galleryArray,
             desc: formData.desc,
-            in_stock: formData.in_stock // Записуємо статус наявності в базу
+            in_stock: formData.in_stock
         };
 
         if (editingId) {
@@ -200,6 +207,15 @@ export default function AdminDashboard() {
         setIsModalOpen(false);
         fetchProducts();
     };
+
+    const filteredProducts = products.filter((product) => {
+        const query = searchQuery.toLowerCase();
+        const matchesId = product.id.toString().includes(query);
+        const matchesName = product.name.toLowerCase().includes(query);
+        const matchesArticle = product.article?.toLowerCase().includes(query);
+
+        return matchesId || matchesName || matchesArticle;
+    });
 
     if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-10 w-10 text-[#facc15] animate-spin" /></div>;
 
@@ -229,6 +245,20 @@ export default function AdminDashboard() {
                         <h1 className="text-2xl font-black text-white">Панель керування</h1>
                         <p className="text-gray-400 text-sm">Керування каталогом товарів</p>
                     </div>
+
+                    <div className="flex-1 max-w-md mx-4 relative w-full">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-gray-500" />
+                        </div>
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Пошук по коду, назві або артикулу..."
+                            className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-[#facc15] outline-none transition-colors"
+                        />
+                    </div>
+
                     <div className="flex gap-4">
                         <button onClick={openAddModal} className="bg-[#facc15] hover:bg-[#eab308] text-[#0f1110] px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors">
                             <Plus className="h-5 w-5" /> Додати товар
@@ -244,6 +274,7 @@ export default function AdminDashboard() {
                         <thead className="bg-[#1c221f] border-b border-[#323b36] text-xs uppercase font-black text-gray-400">
                         <tr>
                             <th className="px-6 py-4">Фото</th>
+                            <th className="px-6 py-4">Код / Артикул</th>
                             <th className="px-6 py-4">Назва</th>
                             <th className="px-6 py-4">Бренд / Вузол</th>
                             <th className="px-6 py-4">Ціна</th>
@@ -252,17 +283,23 @@ export default function AdminDashboard() {
                         </tr>
                         </thead>
                         <tbody>
-                        {products.length === 0 ? (
+                        {filteredProducts.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Товарів поки немає. Створіть перший!</td>
+                                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                                    {searchQuery ? 'За вашим запитом нічого не знайдено.' : 'Товарів поки немає. Створіть перший!'}
+                                </td>
                             </tr>
                         ) : (
-                            products.map(product => (
+                            filteredProducts.map(product => (
                                 <tr key={product.id} className="border-b border-[#242926] hover:bg-[#1c221f]/50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="w-12 h-12 rounded bg-[#0f1110] border border-[#323b36] overflow-hidden flex items-center justify-center">
                                             {product.img ? <img src={product.img} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="h-5 w-5 text-gray-600" />}
                                         </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-white font-bold text-xs bg-[#242926] px-2 py-1 rounded inline-block mb-1">Код: {product.id}</div>
+                                        {product.article && <div className="text-gray-500 text-xs truncate max-w-[100px]">Арт: {product.article}</div>}
                                     </td>
                                     <td className="px-6 py-4 font-bold text-white max-w-[200px] truncate">{product.name}</td>
                                     <td className="px-6 py-4">
@@ -271,7 +308,6 @@ export default function AdminDashboard() {
                                     </td>
                                     <td className="px-6 py-4 font-black text-[#facc15]">{product.price} грн</td>
 
-                                    {/* Індикатор наявності в таблиці */}
                                     <td className="px-6 py-4 text-center">
                                         {product.in_stock !== false ? (
                                             <span className="bg-green-500/10 text-green-500 border border-green-500/20 px-2 py-1 rounded text-xs font-bold">Є</span>
@@ -306,8 +342,6 @@ export default function AdminDashboard() {
                         </div>
 
                         <form onSubmit={handleSave} className="p-6 flex flex-col gap-5">
-
-                            {/* ЧЕКБОКС НАЯВНОСТІ */}
                             <div className="bg-[#1c221f] border border-[#323b36] p-4 rounded-lg flex items-center justify-between">
                                 <div>
                                     <h3 className="text-white font-bold text-sm">Наявність товару</h3>
@@ -330,18 +364,45 @@ export default function AdminDashboard() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Бренд</label>
-                                    <select value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none">
+                                    <select value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none cursor-pointer">
                                         <option>МТЗ</option>
                                         <option>ЮМЗ</option>
                                         <option>Т-25</option>
                                     </select>
                                 </div>
-                                <div>
+
+                                {/* КАСТОМНИЙ ВУЗОЛ (Вирішує баг з вилітанням за екран) */}
+                                <div className="relative">
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Вузол</label>
-                                    <select value={formData.node} onChange={e => setFormData({...formData, node: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none">
-                                        {TRACTOR_NODES.map(n => <option key={n} value={n}>{n}</option>)}
-                                    </select>
+                                    <div
+                                        onClick={() => setIsNodeOpen(!isNodeOpen)}
+                                        className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white hover:border-[#facc15] focus:border-[#facc15] transition-colors cursor-pointer flex justify-between items-center"
+                                    >
+                                        <span className="truncate">{formData.node}</span>
+                                        <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isNodeOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+
+                                    {isNodeOpen && (
+                                        <>
+                                            <div className="fixed inset-0 z-[60]" onClick={() => setIsNodeOpen(false)}></div>
+                                            <div className="absolute z-[70] top-full left-0 mt-1 w-full max-h-48 overflow-y-auto bg-[#1c221f] border border-[#323b36] rounded-lg shadow-2xl custom-scrollbar py-1">
+                                                {TRACTOR_NODES.map(n => (
+                                                    <div
+                                                        key={n}
+                                                        onClick={() => {
+                                                            setFormData({...formData, node: n});
+                                                            setIsNodeOpen(false);
+                                                        }}
+                                                        className={`px-3 py-2 text-sm cursor-pointer transition-colors ${formData.node === n ? 'bg-[#facc15]/10 text-[#facc15] font-bold' : 'text-gray-300 hover:bg-[#242926] hover:text-white'}`}
+                                                    >
+                                                        {n}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Артикул</label>
                                     <input type="text" value={formData.article} onChange={e => setFormData({...formData, article: e.target.value})} className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-2.5 text-white focus:border-[#facc15] outline-none" />

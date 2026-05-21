@@ -66,7 +66,7 @@ export default function AdminLogin() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg py-2.5 pl-10 pr-4 text-white focus:border-[#facc15] focus:outline-none transition-colors"
-                                placeholder="admin@agro-shop.com"
+                                placeholder="Emaile"
                             />
                         </div>
                     </div>
