@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ShoppingCart, X, Plus, Minus, Trash2, CheckCircle2, Loader2 } from 'lucide-react';
+import { ShoppingCart, X, Plus, Minus, Trash2, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation'; // ДОДАНО: імпортуємо роутер для редіректа
 
 type CartItem = {
     id: number;
@@ -24,15 +25,15 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+    const router = useRouter(); // ДОДАНО: ініціалізуємо роутер
+
     const [items, setItems] = useState<CartItem[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
 
     const [isCheckout, setIsCheckout] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
 
-    // ДОДАНО: номер за замовчуванням починається з +380
     const [formData, setFormData] = useState({ name: '', phone: '+380', address: '' });
 
     useEffect(() => {
@@ -66,7 +67,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         });
         setIsOpen(true);
         setIsCheckout(false);
-        setIsSuccess(false);
     };
 
     const removeFromCart = (id: number) => {
@@ -116,9 +116,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             const result = await response.json();
 
             if (result.success) {
-                setIsSuccess(true);
+                // Очищаємо кошик і форму
                 setItems([]);
-                setFormData({ name: '', phone: '+380', address: '' }); // Скидаємо до +380
+                setFormData({ name: '', phone: '+380', address: '' });
+
+                // Закриваємо бокову панель кошика
+                setIsOpen(false);
+                setIsCheckout(false);
+
+                // РОБИМО РЕДІРЕКТ НА СТОРІНКУ "ДЯКУЄМО"
+                router.push('/thank-you');
             } else {
                 alert("Сталася помилка при відправці. Спробуйте ще раз.");
             }
@@ -134,7 +141,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setIsOpen(false);
         setTimeout(() => {
             setIsCheckout(false);
-            setIsSuccess(false);
         }, 300);
     };
 
@@ -150,8 +156,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                     <ShoppingCart className="h-6 w-6" />
                     {items.length > 0 && (
                         <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-[#0f1110]">
-              {items.length}
-            </span>
+                            {items.length}
+                        </span>
                     )}
                 </button>
             )}
@@ -172,106 +178,92 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+                            {isCheckout ? (
+                                <form id="checkout-form" onSubmit={submitOrder} className="flex flex-col gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">Ваше ім'я</label>
+                                        <input
+                                            required
+                                            type="text"
+                                            placeholder="Іван Іванов"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                            className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-3 text-white focus:border-[#facc15] focus:outline-none transition-colors"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">Номер телефону</label>
+                                        <input
+                                            required
+                                            type="tel"
+                                            value={formData.phone}
+                                            onChange={(e) => {
+                                                let val = e.target.value;
+                                                if (!val.startsWith('+380')) {
+                                                    val = '+380';
+                                                }
+                                                const digits = val.slice(4).replace(/\D/g, '');
+                                                setFormData({...formData, phone: '+380' + digits.slice(0, 9)});
+                                            }}
+                                            pattern="^\+380[0-9]{9}$"
+                                            title="Введіть коректний номер у форматі +380XXXXXXXXX"
+                                            className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-3 text-white focus:border-[#facc15] focus:outline-none transition-colors"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">Місто та відділення НП</label>
+                                        <input
+                                            required
+                                            type="text"
+                                            placeholder="м. Львів, Відділення №1"
+                                            value={formData.address}
+                                            onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                            className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-3 text-white focus:border-[#facc15] focus:outline-none transition-colors"
+                                        />
+                                    </div>
 
-                            {isSuccess ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-                                        <CheckCircle2 className="h-20 w-20 text-green-500 mb-2" />
-                                        <h3 className="text-2xl font-black text-white">Замовлення прийнято!</h3>
-                                        <p className="text-gray-400">Наш менеджер зателефонує вам найближчим часом для підтвердження деталей.</p>
-                                        <button onClick={closeCart} className="mt-6 bg-[#242926] hover:bg-[#323b36] text-white px-6 py-3 rounded-lg font-bold transition-all">
-                                            Повернутися до покупок
+                                    <div className="mt-4 p-4 bg-[#1c221f] rounded-lg border border-[#242926]">
+                                        <h4 className="text-sm font-bold text-gray-300 mb-2">Ваше замовлення:</h4>
+                                        <ul className="text-sm text-gray-400 flex flex-col gap-1 mb-3">
+                                            {items.map(i => (
+                                                <li key={i.id} className="flex justify-between">
+                                                    <span className="truncate pr-2">{i.name} x{i.quantity}</span>
+                                                    <span className="shrink-0">{i.price * i.quantity} грн</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <div className="flex justify-between items-center pt-3 border-t border-[#323b36]">
+                                            <span className="font-bold text-white">Сума:</span>
+                                            <span className="font-black text-[#facc15] text-lg">{total} грн</span>
+                                        </div>
+                                    </div>
+                                </form>
+                            ) : items.length === 0 ? (
+                                <div className="text-center text-gray-500 mt-10 font-medium">Кошик порожній 😔</div>
+                            ) : (
+                                items.map(item => (
+                                    <div key={item.id} className="flex gap-4 bg-[#1c221f] p-3 rounded-lg border border-[#242926]">
+                                        <img src={item.img} alt={item.name} className="w-20 h-20 object-cover rounded-md bg-black" />
+                                        <div className="flex flex-col justify-between flex-1">
+                                            <h3 className="text-white text-sm font-bold leading-tight line-clamp-2">{item.name}</h3>
+                                            <div className="flex items-center justify-between mt-2">
+                                                <span className="text-[#facc15] font-black">{item.price * item.quantity} грн</span>
+                                                <div className="flex items-center bg-[#141816] rounded-md border border-[#323b36]">
+                                                    <button type="button" onClick={() => updateQuantity(item.id, -1)} className="p-1 text-gray-400 hover:text-white"><Minus className="h-4 w-4"/></button>
+                                                    <span className="w-8 text-center text-white text-sm font-bold">{item.quantity}</span>
+                                                    <button type="button" onClick={() => updateQuantity(item.id, 1)} className="p-1 text-gray-400 hover:text-white"><Plus className="h-4 w-4"/></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="button" onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-red-500 transition-colors self-start p-1">
+                                            <Trash2 className="h-5 w-5" />
                                         </button>
                                     </div>
-                                )
-                                : isCheckout ? (
-                                        <form id="checkout-form" onSubmit={submitOrder} className="flex flex-col gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-400 mb-1">Ваше ім'я</label>
-                                                <input
-                                                    required
-                                                    type="text"
-                                                    placeholder="Іван Іванов"
-                                                    value={formData.name}
-                                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                                    className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-3 text-white focus:border-[#facc15] focus:outline-none transition-colors"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-400 mb-1">Номер телефону</label>
-                                                <input
-                                                    required
-                                                    type="tel"
-                                                    value={formData.phone}
-                                                    onChange={(e) => {
-                                                        let val = e.target.value;
-                                                        // Захист: якщо стерли префікс, повертаємо його
-                                                        if (!val.startsWith('+380')) {
-                                                            val = '+380';
-                                                        }
-                                                        // Залишаємо тільки цифри після +380 і лімітуємо до 9 штук
-                                                        const digits = val.slice(4).replace(/\D/g, '');
-                                                        setFormData({...formData, phone: '+380' + digits.slice(0, 9)});
-                                                    }}
-                                                    pattern="^\+380[0-9]{9}$"
-                                                    title="Введіть коректний номер у форматі +380XXXXXXXXX"
-                                                    className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-3 text-white focus:border-[#facc15] focus:outline-none transition-colors"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-400 mb-1">Місто та відділення НП</label>
-                                                <input
-                                                    required
-                                                    type="text"
-                                                    placeholder="м. Львів, Відділення №1"
-                                                    value={formData.address}
-                                                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                                                    className="w-full bg-[#1c221f] border border-[#323b36] rounded-lg p-3 text-white focus:border-[#facc15] focus:outline-none transition-colors"
-                                                />
-                                            </div>
-
-                                            <div className="mt-4 p-4 bg-[#1c221f] rounded-lg border border-[#242926]">
-                                                <h4 className="text-sm font-bold text-gray-300 mb-2">Ваше замовлення:</h4>
-                                                <ul className="text-sm text-gray-400 flex flex-col gap-1 mb-3">
-                                                    {items.map(i => (
-                                                        <li key={i.id} className="flex justify-between">
-                                                            <span className="truncate pr-2">{i.name} x{i.quantity}</span>
-                                                            <span className="shrink-0">{i.price * i.quantity} грн</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                                <div className="flex justify-between items-center pt-3 border-t border-[#323b36]">
-                                                    <span className="font-bold text-white">Сума:</span>
-                                                    <span className="font-black text-[#facc15] text-lg">{total} грн</span>
-                                                </div>
-                                            </div>
-                                        </form>
-                                    )
-                                    : items.length === 0 ? (
-                                        <div className="text-center text-gray-500 mt-10 font-medium">Кошик порожній 😔</div>
-                                    ) : (
-                                        items.map(item => (
-                                            <div key={item.id} className="flex gap-4 bg-[#1c221f] p-3 rounded-lg border border-[#242926]">
-                                                <img src={item.img} alt={item.name} className="w-20 h-20 object-cover rounded-md bg-black" />
-                                                <div className="flex flex-col justify-between flex-1">
-                                                    <h3 className="text-white text-sm font-bold leading-tight line-clamp-2">{item.name}</h3>
-                                                    <div className="flex items-center justify-between mt-2">
-                                                        <span className="text-[#facc15] font-black">{item.price * item.quantity} грн</span>
-                                                        <div className="flex items-center bg-[#141816] rounded-md border border-[#323b36]">
-                                                            <button type="button" onClick={() => updateQuantity(item.id, -1)} className="p-1 text-gray-400 hover:text-white"><Minus className="h-4 w-4"/></button>
-                                                            <span className="w-8 text-center text-white text-sm font-bold">{item.quantity}</span>
-                                                            <button type="button" onClick={() => updateQuantity(item.id, 1)} className="p-1 text-gray-400 hover:text-white"><Plus className="h-4 w-4"/></button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <button type="button" onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-red-500 transition-colors self-start p-1">
-                                                    <Trash2 className="h-5 w-5" />
-                                                </button>
-                                            </div>
-                                        ))
-                                    )}
+                                ))
+                            )}
                         </div>
 
-                        {!isSuccess && items.length > 0 && (
+                        {items.length > 0 && (
                             <div className="p-6 border-t border-[#242926] bg-[#1c221f] flex flex-col gap-3">
                                 {!isCheckout ? (
                                     <>
